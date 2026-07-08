@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GYM 训练日志导入工具</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f9fafb; color: #1f2937; line-height: 1.5;
+  min-height: 100vh;
+}
+header {
+  background: #fff; border-bottom: 1px solid #e5e7eb; padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 10;
+}
+header h1 { font-size: 18px; color: #22c55e; }
+.badge { font-size: 11px; color: #6b7280; }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+.toolbar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500;
+  border: none; cursor: pointer; transition: all .15s;
+}
+.btn-primary { background: #22c55e; color: #fff; }
+.btn-primary:hover { background: #16a34a; }
+.btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.btn-secondary:hover { background: #e5e7eb; }
+.btn-danger { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; }
+.btn-danger:hover { background: #fee2e2; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.panels {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+}
+@media (max-width: 900px) { .panels { grid-template-columns: 1fr; } }
+
+.panel {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.panel-header {
+  padding: 12px 16px; font-size: 13px; font-weight: 600; color: #6b7280;
+  border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; gap: 8px;
+}
+.panel-body { flex: 1; overflow: auto; }
+.panel-body textarea {
+  width: 100%; height: 100%; min-height: 500px; border: none; resize: none;
+  padding: 16px; font-size: 13px; font-family: 'SF Mono', 'Menlo', monospace;
+  line-height: 1.7; outline: none; color: #374151; background: transparent;
+}
+
+/* Day card */
+.day-card {
+  border-bottom: 1px solid #f3f4f6; padding: 12px 16px;
+}
+.day-card:last-child { border-bottom: none; }
+.day-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.day-type {
+  font-weight: 600; font-size: 14px; color: #22c55e;
+  display: flex; align-items: center; gap: 6px;
+}
+.day-type .day-date { font-weight: 400; font-size: 12px; color: #9ca3af; }
+.day-type input { font-size: 12px; padding: 2px 6px; border: 1px solid #e5e7eb; border-radius: 4px; width: 110px; }
+.day-actions { display: flex; gap: 4px; }
+
+/* Exercise row */
+.ex-row {
+  border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 6px;
+  padding: 8px 12px; position: relative;
+}
+.ex-row.uncertain { border-color: #fca5a5; background: #fef2f2; }
+.ex-row-header {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.ex-row-header input, .ex-row-header select {
+  font-size: 13px; padding: 2px 6px; border: 1px solid #e5e7eb; border-radius: 4px;
+}
+.ex-row-header .ex-name { min-width: 140px; font-weight: 500; }
+.ex-row-header .ex-weight { width: 70px; text-align: center; }
+.ex-row-header .ex-sets-count { font-size: 11px; color: #9ca3af; }
+.ex-note { font-size: 11px; color: #9ca3af; margin-bottom: 2px; font-style: italic; }
+.ex-note input { font-size: 11px; padding: 1px 4px; border: 1px solid #e5e7eb; border-radius: 3px; width: 100%; }
+
+/* Set list */
+.sets-list { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.set-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px;
+  padding: 3px 8px; font-size: 12px;
+}
+.set-chip.uncertain-chip { background: #fef2f2; border-color: #fca5a5; }
+.set-chip input { width: 38px; font-size: 12px; text-align: center; border: none; background: transparent; outline: none; font-family: monospace; }
+.set-chip .set-label { font-size: 10px; color: #9ca3af; }
+.add-set { font-size: 11px; color: #22c55e; cursor: pointer; padding: 2px 6px; border-radius: 4px; border: 1px dashed #bbf7d0; background: transparent; }
+.add-set:hover { background: #f0fdf4; }
+.remove-ex { font-size: 16px; color: #d1d5db; cursor: pointer; padding: 0 4px; line-height: 1; }
+.remove-ex:hover { color: #ef4444; }
+
+.uncertain-badge {
+  font-size: 10px; background: #fef2f2; color: #ef4444; padding: 1px 6px;
+  border-radius: 10px; font-weight: 500;
+}
+
+.empty-state { text-align: center; padding: 60px 20px; color: #9ca3af; }
+.empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #1f2937; color: #fff; padding: 10px 24px; border-radius: 8px;
+  font-size: 14px; z-index: 100; animation: fadeIn .2s;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(8px);} to{opacity:1;transform:translateX(-50%) translateY(0);} }
+
+.day-skip { opacity: .4; }
+.day-skip .day-type { color: #9ca3af; }
+
+summary { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏋️ GYM 导入工具</h1>
+  <span class="badge">文本 → 结构化训练数据</span>
+</header>
+
+<div class="container">
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="doParse()">🔍 解析文本</button>
+    <button class="btn btn-secondary btn-sm" onclick="addEmptyDay()">+ 空白日</button>
+    <button class="btn btn-secondary btn-sm" onclick="exportJSON()">📥 导出 JSON</button>
+    <button class="btn btn-secondary btn-sm" onclick="importToGYM()">📤 直接写入 GYM</button>
+    <button class="btn btn-danger btn-sm" onclick="clearAll()">清空</button>
+  </div>
+
+  <div class="panels">
+    <!-- Left: raw text -->
+    <div class="panel">
+      <div class="panel-header">📝 粘贴训练文本</div>
+      <div class="panel-body">
+        <textarea id="rawInput" placeholder="在这里粘贴手机笔记中的训练记录...&#10;&#10;示例：&#10;上肢&#10;上斜25kg&#10;9 9&#10;侧平举25kg&#10;8 7"></textarea>
+      </div>
+    </div>
+
+    <!-- Right: preview -->
+    <div class="panel">
+      <div class="panel-header">
+        📋 解析预览
+        <span style="font-weight:400;font-size:11px;margin-left:auto;" id="resultCount"></span>
+      </div>
+      <div class="panel-body" id="preview">
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          <p>粘贴文本后点击「解析文本」</p>
+          <p style="font-size:12px;margin-top:4px;">支持自由格式的训练日志，自动识别动作、重量、组次数</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======== Alias Mappings (from CLAUDE.md) ========
+const ALIAS_MAP = {
+  '上斜': '史密斯卧推',
+  '上斜哑铃': '哑铃上斜卧推',
+  '侧平举': '绳索侧平举',
+  '下拉': '钢线下拉',
+  '高位': '高位下拉',
+  '高位下拉': '高位下拉',
+  '卷腹': '绳索卷腹',
+  '上斜夹胸': '器械上斜夹胸',
+  '过头': '过头臂屈伸',
+  '过头臂屈伸': '过头臂屈伸',
+  '老板': '俯身哑铃外展',
+  '内收': '髋内收',
+  '髋内收': '髋内收',
+  '腿弯举': '俯卧腿弯举',
+  '山羊': '山羊挺身',
+  '山羊挺身': '山羊挺身',
+  '夹胸': '器械夹胸',
+  't杆': 'T杆划船',
+  'T杆': 'T杆划船',
+  '腹肌': '器械卷腹',
+  '有氧': '有氧',
+  '双杠': '负重双杠臂屈伸',
+  '单腿': '负重单腿蹲',
+  '保蹲': '保加利亚单腿蹲',
+  '上斜对握': '上斜对握卧推',
+};
+
+const DAY_HEADERS = ['上肢', '下肢', '腿', '后侧日', '休息'];
+
+// Map day header to type
+function classifyDay(header) {
+  if (header === '休息') return { type: '休息', focus: null };
+  if (header === '后侧日') return { type: '下肢', focus: '后侧' };
+  if (header === '腿' || header === '下肢') return { type: '下肢', focus: '前侧' };
+  if (header === '上肢') return { type: '上肢', focus: null };
+  return { type: header, focus: null };
+}
+
+// Infer exercise for bare weight (e.g. "135kg" with no name)
+function inferExerciseFromWeight(dayType, dayFocus) {
+  if (dayType === '下肢' && dayFocus === '前侧') return '深蹲';
+  if (dayType === '下肢' && dayFocus === '后侧') return '硬拉';
+  return null;
+}
+
+// Resolve alias to standard name
+function resolveName(raw) {
+  // Try exact match first
+  if (ALIAS_MAP[raw]) return { name: ALIAS_MAP[raw], known: true };
+  // Try case-insensitive
+  const lower = raw.toLowerCase();
+  for (const [k, v] of Object.entries(ALIAS_MAP)) {
+    if (k.toLowerCase() === lower) return { name: v, known: true };
+  }
+  // Try substring match
+  for (const [k, v] of Object.entries(ALIAS_MAP)) {
+    if (raw.includes(k) || k.includes(raw)) return { name: v, known: true };
+  }
+  return { name: raw, known: false };
+}
+
+// ======== Parser ========
+function parseText(raw) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const days = [];
+
+  let currentDay = null;
+  let currentSession = null; // 'am' or 'pm'
+  let currentEx = null;
+  let pendingDataLines = [];
+
+  function flushExercise() {
+    if (!currentDay || !currentEx) return;
+    const sets = parseDataLines(pendingDataLines, currentEx.baseWeight);
+    currentEx.sets = sets;
+    currentEx.uncertain = currentEx.uncertain || sets.some(s => s.uncertain);
+    currentEx.note = currentEx.note || '';
+    if (currentSession === 'pm') currentEx.session = 'pm';
+    currentDay.exercises.push(currentEx);
+    currentEx = null;
+    pendingDataLines = [];
+  }
+
+  function flushDay() {
+    flushExercise();
+    if (currentDay) {
+      if (currentDay.exercises.length === 0 && currentDay.type === '休息') {
+        currentDay.note = currentDay.rawLines.join(' ');
+      }
+      days.push(currentDay);
+    }
+    currentDay = null;
+    currentSession = 'am';
+    currentEx = null;
+    pendingDataLines = [];
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineLower = line.toLowerCase();
+
+    // Check for day header
+    const headerMatch = DAY_HEADERS.find(h => {
+      const idx = lineLower.indexOf(h.toLowerCase());
+      return idx === 0 && (idx + h.length === line.length || line[idx + h.length] === '（' || line[idx + h.length] === '(' || line[idx + h.length] === ' ');
+    });
+
+    if (headerMatch) {
+      flushDay();
+      const info = classifyDay(headerMatch);
+      const restOfLine = line.slice(headerMatch.length).replace(/[（()）]/g, ' ').trim();
+      currentDay = {
+        type: info.type,
+        focus: info.focus,
+        date: null,
+        exercises: [],
+        note: restOfLine || '',
+        rawLines: [],
+        uncertain: false,
+      };
+      currentSession = 'am';
+      continue;
+    }
+
+    if (!currentDay) {
+      // Before any day header — treat as a new day if looks like training
+      if (line.includes('kg') || line.includes('KG') || line.includes('Kg') || /\d/.test(line)) {
+        currentDay = { type: '未知', focus: null, date: null, exercises: [], note: '', rawLines: [], uncertain: true };
+        currentSession = 'am';
+      } else {
+        continue; // Skip preamble
+      }
+    }
+
+    currentDay.rawLines.push(line);
+
+    // Skip rest days
+    if (currentDay.type === '休息') continue;
+
+    // Check for afternoon divider
+    if (line === '下午' || line.startsWith('下午')) {
+      flushExercise();
+      currentSession = 'pm';
+      continue;
+    }
+
+    // Check for "嘎吱" — extra set marker, not an exercise
+    if (line.includes('嘎吱')) {
+      // Add to previous exercise's note
+      if (currentEx) {
+        currentEx.note = (currentEx.note ? currentEx.note + ' ' : '') + '嘎吱追加一组';
+      } else if (currentDay.exercises.length > 0) {
+        const last = currentDay.exercises[currentDay.exercises.length - 1];
+        last.note = (last.note ? last.note + ' ' : '') + '嘎吱追加一组';
+      }
+      continue;
+    }
+
+    // Try to parse as exercise line (contains kg or known exercise name)
+    const exInfo = extractExerciseInfo(line);
+    if (exInfo) {
+      flushExercise();
+      const resolved = resolveName(exInfo.name);
+      currentEx = {
+        rawName: exInfo.name,
+        name: resolved.name,
+        known: resolved.known,
+        baseWeight: exInfo.weight,
+        explicitSets: exInfo.sets,
+        sets: [],
+        note: exInfo.note || '',
+        uncertain: !resolved.known,
+      };
+      continue;
+    }
+
+    // Check if line is purely a data line (reps/weights)
+    const dataInfo = extractDataLine(line);
+    if (dataInfo) {
+      if (currentEx) {
+        pendingDataLines.push(line);
+      } else if (currentDay.exercises.length > 0) {
+        // Could be extra sets for the last exercise
+        pendingDataLines.push(line);
+        // Attach to last exercise
+        const last = currentDay.exercises[currentDay.exercises.length - 1];
+        const extraSets = parseDataLines([line], last.baseWeight);
+        for (const s of extraSets) {
+          if (!s.uncertain || s.reps > 0) last.sets.push(s);
+        }
+      }
+      continue;
+    }
+
+    // Pure comment / 碎碎念
+    if (currentEx) {
+      currentEx.note = (currentEx.note ? currentEx.note + ' ' : '') + line;
+    } else if (currentDay.exercises.length > 0) {
+      const last = currentDay.exercises[currentDay.exercises.length - 1];
+      last.note = (last.note ? last.note + ' ' : '') + line;
+    }
+  }
+
+  flushDay();
+  return days;
+}
+
+// Extract exercise info from a line: { name, weight, sets, note }
+function extractExerciseInfo(line) {
+  let working = line;
+
+  // Extract trailing note (Chinese text after numbers, but keep short notes)
+  let note = '';
+  const noteMatch = working.match(/[一-鿿]{4,}$/);
+  if (noteMatch) {
+    note = noteMatch[0];
+    working = working.slice(0, -note.length).trim();
+  }
+
+  // Bare weight line: just "135kG" with no name → squat/deadlift (inferred later)
+  const bareWeightOnly = working.match(/^(\d+\.?\d*)\s*kg\s*$/i);
+  if (bareWeightOnly) {
+    const w = parseFloat(bareWeightOnly[1]);
+    if (w > 0 && w <= 200) {
+      return { name: '', weight: w, sets: null, note };
+    }
+  }
+
+  // Try suffix weight: "侧平举25kg" pattern (most common)
+  const suffixMatch = working.match(/(\d+\.?\d*)\s*kg\s*$/i);
+  if (suffixMatch) {
+    const w = parseFloat(suffixMatch[1]);
+    const n = working.slice(0, -suffixMatch[0].length).trim();
+    if (n && w > 0 && w <= 200 && !/^\d+$/.test(n)) {
+      return { name: n, weight: w, sets: null, note };
+    }
+  }
+
+  // Try: "142 2组" — bare weight with explicit sets (deadlift/squat)
+  const bareMatch = working.match(/^(\d+\.?\d*)\s+(\d+)\s*组/);
+  if (bareMatch) {
+    const w = parseFloat(bareMatch[1]);
+    const sets = parseInt(bareMatch[2]);
+    const n = working.slice(bareMatch[0].length).trim();
+    if (w > 0 && w <= 200) {
+      return { name: n || '', weight: w, sets: sets, note };
+    }
+  }
+
+  // Try: "20kg上斜夹胸" — prefix weight with Chinese name directly after
+  const prefixKgNameMatch = working.match(/^(\d+\.?\d*)\s*kg\s*([一-鿿].+)/i);
+  if (prefixKgNameMatch) {
+    const w = parseFloat(prefixKgNameMatch[1]);
+    let n = prefixKgNameMatch[2].trim();
+    n = n.replace(/\s*\d+\.?\d*\s*kg\s*$/i, '').trim();
+    if (n && w > 0 && w <= 200) {
+      return { name: n, weight: w, sets: null, note };
+    }
+  }
+
+  // Try prefix weight: "25KG上斜" pattern
+  const prefixMatch = working.match(/^(\d+\.?\d*)\s*kg/i);
+  if (prefixMatch) {
+    const w = parseFloat(prefixMatch[1]);
+    const n = working.slice(prefixMatch[0].length).trim();
+    if (n && w > 0 && w <= 200 && !/^\d/.test(n)) {
+      return { name: n, weight: w, sets: null, note };
+    }
+  }
+
+  // Check if line contains a known exercise alias
+  for (const alias of Object.keys(ALIAS_MAP)) {
+    if (working.includes(alias)) {
+      const kgMatch = working.match(/(\d+\.?\d*)\s*kg\s*/i);
+      if (kgMatch) {
+        const w = parseFloat(kgMatch[1]);
+        const n = working.replace(/\d+\.?\d*\s*kg\s*/ig, '').replace(/\d+组/g, '').trim();
+        if (n && w > 0 && w <= 200) {
+          return { name: n, weight: w, sets: null, note };
+        }
+      }
+      const n = working.replace(/\d+组/g, '').trim();
+      if (n) {
+        return { name: n, weight: null, sets: null, note };
+      }
+    }
+  }
+
+  // Try: "55 保蹲22.5哑铃双手" — leading number + exercise with alias
+  const numThenName = working.match(/^(\d+\.?\d*)\s+([一-鿿].+)/);
+  if (numThenName) {
+    const leadNum = parseFloat(numThenName[1]);
+    const subName = numThenName[2];
+    let foundAlias = null;
+    for (const alias of Object.keys(ALIAS_MAP)) {
+      if (subName.includes(alias)) { foundAlias = alias; break; }
+    }
+    if (foundAlias) {
+      const embWeight = subName.match(/(\d+\.?\d*)\s*kg/i);
+      const w = embWeight ? parseFloat(embWeight[1]) : (leadNum > 0 && leadNum <= 200 ? leadNum : null);
+      const n = subName.replace(/\d+\.?\d*\s*kg/ig, '').replace(/\d+组/g, '').trim();
+      if (n) {
+        return {
+          name: n,
+          weight: w,
+          sets: (subName.match(/(\d+)\s*组/) || [])[1] ? parseInt(subName.match(/(\d+)\s*组/)[1]) : null,
+          note,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+// Extract data (reps/weights) from a line
+function extractDataLine(line) {
+  // Remove obvious comments
+  let clean = line.replace(/[。，！？…\.]/g, ' ').trim();
+  if (!/\d/.test(clean)) return null;
+  return clean;
+}
+
+// Parse data lines into sets
+function parseDataLines(lines, baseWeight) {
+  const sets = [];
+  for (const line of lines) {
+    const parsed = parseOneDataLine(line, baseWeight);
+    sets.push(...parsed);
+  }
+  // If we got explicit sets count from exercise line, adjust
+  return sets;
+}
+
+function parseOneDataLine(line, baseWeight) {
+  const sets = [];
+  // Remove Chinese text (comments inline)
+  let clean = line.replace(/[一-鿿]{2,}/g, ' ').trim();
+  // Remove trailing punctuation
+  clean = clean.replace(/[。，、…]+$/g, '').trim();
+
+  if (!clean || !/\d/.test(clean)) return [];
+
+  // --- Preprocessing: expand compact notations into space-separated tokens ---
+
+  // 1. "322.5kg5" → "3 22.5kg 5" (leading rep(s)+weight+trailing rep(s))
+  // Use non-greedy leading digits so weight gets more digits
+  clean = clean.replace(/^(\d{1,2}?)(\d{2,}\.?\d*)kg(\d+)/i, '$1 $2kg $3');
+  clean = clean.replace(/^(\d{1,2}?)(\d{2,}\.?\d*)kg/i, '$1 $2kg');
+
+  // 2. "130kgx2" or "130kg×2" → "130kg 2"
+  clean = clean.replace(/(\d+\.?\d*\s*kg)\s*[x×]\s*(\d+)/gi, '$1 $2');
+
+  // 3. "86D7" → "8 6 D7"  (drop set notation)
+  clean = clean.replace(/(\d+)d(\d)/gi, '$1 D$2');
+
+  // 4. "1010" → "10 10" (two rep counts concatenated)
+  // Don't split if followed by "kg" (it's a weight like "22.5kg")
+  clean = clean.replace(/\b([1-9]|1\d)([1-9]|1\d)\b(?!\s*kg|\.\d*kg)/g, (m, a, b) => {
+    const na = parseInt(a), nb = parseInt(b);
+    if (na <= 20 && nb <= 20) return a + ' ' + b;
+    return m;
+  });
+
+  // 5. ".7" at end → treat as new rep count
+  clean = clean.replace(/\.(\d+)$/g, ' $1');
+
+  // Split into tokens
+  const rawTokens = clean.split(/\s+/).filter(Boolean);
+  let i = 0;
+
+  while (i < rawTokens.length) {
+    const token = rawTokens[i];
+
+    // Skip non-numeric markers (D, d, etc. are drop set markers)
+    if (token === 'D' || token === 'd') { i++; continue; }
+
+    if (!/[\d]/.test(token)) { i++; continue; }
+
+    // Weight spec: "22.5kg" or "130kg"
+    const kgMatch = token.match(/^(\d+\.?\d*)\s*kg$/i);
+    if (kgMatch) {
+      const w = parseFloat(kgMatch[1]);
+      if (w > 0 && w <= 200) {
+        i++;
+        while (i < rawTokens.length && /^\d+\.?\d*$/.test(rawTokens[i]) && parseFloat(rawTokens[i]) <= 100) {
+          const rep = parseFloat(rawTokens[i]);
+          if (rep > 0) sets.push({ weight: w, reps: rep, uncertain: false });
+          i++;
+        }
+        continue;
+      }
+    }
+
+    // Plain number
+    const num = parseFloat(token);
+    if (isNaN(num)) { i++; continue; }
+
+    if (num > 0 && num <= 100) {
+      // Check if next token is a weight spec → this rep uses CURRENT (base) weight,
+      // then subsequent reps will use the new weight
+      if (i + 1 < rawTokens.length) {
+        const nk = rawTokens[i + 1].match(/^(\d+\.?\d*)\s*kg$/i);
+        if (nk && parseFloat(nk[1]) > 0 && parseFloat(nk[1]) <= 200) {
+          // Rep at CURRENT weight, then the weight changes
+          sets.push({ weight: baseWeight || 0, reps: num, uncertain: baseWeight === null });
+          baseWeight = parseFloat(nk[1]); // update current weight for subsequent reps
+          i += 2;
+          continue;
+        }
+      }
+      // Plain reps at current weight
+      sets.push({ weight: baseWeight || 0, reps: num, uncertain: baseWeight === null });
+      i++;
+      continue;
+    }
+
+    // Large number (>100) — probably weight
+    if (num > 100) {
+      const w = num;
+      i++;
+      while (i < rawTokens.length && /^\d+\.?\d*$/.test(rawTokens[i]) && parseFloat(rawTokens[i]) <= 100) {
+        const rep = parseFloat(rawTokens[i]);
+        if (rep > 0) sets.push({ weight: w, reps: rep, uncertain: false });
+        i++;
+      }
+      continue;
+    }
+
+    i++;
+  }
+
+  if (sets.length === 0) {
+    sets.push({ weight: baseWeight || 0, reps: 0, uncertain: true, raw: line });
+  }
+
+  return sets;
+}
+
+// ======== State ========
+let parsedDays = [];
+
+function doParse() {
+  const raw = document.getElementById('rawInput').value;
+  if (!raw.trim()) return toast('请先粘贴训练文本');
+
+  parsedDays = parseText(raw);
+
+  // Infer missing exercise names for bare weights
+  for (const day of parsedDays) {
+    for (const ex of day.exercises) {
+      if (!ex.name || ex.name === '') {
+        const inferred = inferExerciseFromWeight(day.type, day.focus);
+        if (inferred) {
+          ex.name = inferred;
+          ex.known = true;
+          ex.uncertain = false;
+        } else {
+          ex.name = '未知动作';
+          ex.known = false;
+          ex.uncertain = true;
+        }
+      }
+    }
+  }
+
+  renderPreview();
+  document.getElementById('resultCount').textContent =
+    `${parsedDays.length} 天 · ${parsedDays.reduce((s, d) => s + d.exercises.length, 0)} 个动作`;
+}
+
+function renderPreview() {
+  const container = document.getElementById('preview');
+  if (parsedDays.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>粘贴文本后点击「解析文本」</p></div>`;
+    return;
+  }
+
+  let html = '';
+  parsedDays.forEach((day, di) => {
+    const totalSets = day.exercises.reduce((s, ex) => s + ex.sets.length, 0);
+    const dayLabel = day.type === '休息' ? '休息日' :
+      day.focus ? `${day.type}（${day.focus}侧focus）` : day.type;
+
+    html += `<div class="day-card${day.type === '休息' ? ' day-skip' : ''}">`;
+    html += `<div class="day-header">`;
+    html += `<div class="day-type">${dayLabel}`;
+    html += ` <input class="day-date" type="date" value="${day.date || ''}" onchange="updateDayDate(${di}, this.value)" placeholder="日期">`;
+    if (day.note) html += `<span style="font-size:11px;color:#9ca3af;font-weight:400;"> — ${escHtml(day.note)}</span>`;
+    if (day.uncertain) html += ` <span class="uncertain-badge">⚠️</span>`;
+    html += `</div>`;
+    html += `<div class="day-actions">`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="addExercise(${di})">+ 动作</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="removeDay(${di})" style="color:#ef4444;">删除</button>`;
+    html += `</div></div>`;
+
+    if (day.type !== '休息') {
+      day.exercises.forEach((ex, ei) => {
+        const uncertainClass = ex.uncertain ? ' uncertain' : '';
+        html += `<div class="ex-row${uncertainClass}" id="ex-${di}-${ei}">`;
+        if (ex.uncertain) html += `<span class="uncertain-badge">⚠️ 需确认</span>`;
+        if (ex.note) html += `<div class="ex-note">📝 <input value="${escAttr(ex.note)}" onchange="updateNote(${di},${ei},this.value)"></div>`;
+        html += `<div class="ex-row-header">`;
+        html += `<input class="ex-name" value="${escAttr(ex.name)}" onchange="updateExName(${di},${ei},this.value)">`;
+        html += `<span class="ex-sets-count">${ex.sets.length}组</span>`;
+        html += `<span class="remove-ex" onclick="removeExercise(${di},${ei})" title="删除动作">✕</span>`;
+        html += `</div>`;
+        html += `<div class="sets-list" id="sets-${di}-${ei}">`;
+        ex.sets.forEach((s, si) => {
+          const chipClass = s.uncertain ? ' uncertain-chip' : '';
+          html += `<span class="set-chip${chipClass}">`;
+          html += `<input value="${s.weight || ''}" onchange="updateSet(${di},${ei},${si},'weight',this.value)" placeholder="重量" title="重量(kg)">`;
+          html += `<span class="set-label">kg</span>`;
+          html += `<input value="${s.reps || ''}" onchange="updateSet(${di},${ei},${si},'reps',this.value)" placeholder="次数" title="次数">`;
+          html += `<span class="set-label">次</span>`;
+          html += `<span class="remove-ex" onclick="removeSet(${di},${ei},${si})" title="删除组">✕</span>`;
+          html += `</span>`;
+        });
+        html += `<button class="add-set" onclick="addSet(${di},${ei})">+ 加组</button>`;
+        html += `</div></div>`;
+      });
+    }
+
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// ======== Mutations ========
+function updateDayDate(di, val) { parsedDays[di].date = val; }
+function updateExName(di, ei, val) {
+  parsedDays[di].exercises[ei].name = val;
+  parsedDays[di].exercises[ei].uncertain = false;
+}
+function updateNote(di, ei, val) { parsedDays[di].exercises[ei].note = val; }
+function updateSet(di, ei, si, field, val) {
+  parsedDays[di].exercises[ei].sets[si][field] = parseFloat(val) || 0;
+  parsedDays[di].exercises[ei].sets[si].uncertain = false;
+}
+function removeSet(di, ei, si) {
+  parsedDays[di].exercises[ei].sets.splice(si, 1);
+  renderPreview();
+}
+function addSet(di, ei) {
+  const lastSet = parsedDays[di].exercises[ei].sets.at(-1);
+  parsedDays[di].exercises[ei].sets.push({
+    weight: lastSet ? lastSet.weight : parsedDays[di].exercises[ei].baseWeight || 0,
+    reps: lastSet ? lastSet.reps : 0,
+    uncertain: false,
+  });
+  renderPreview();
+}
+function addExercise(di) {
+  parsedDays[di].exercises.push({
+    name: '新动作', rawName: '', known: false,
+    baseWeight: null, explicitSets: null, sets: [],
+    note: '', uncertain: true,
+  });
+  renderPreview();
+}
+function removeExercise(di, ei) {
+  parsedDays[di].exercises.splice(ei, 1);
+  renderPreview();
+}
+function removeDay(di) {
+  parsedDays.splice(di, 1);
+  renderPreview();
+  document.getElementById('resultCount').textContent =
+    `${parsedDays.length} 天 · ${parsedDays.reduce((s, d) => s + d.exercises.length, 0)} 个动作`;
+}
+function addEmptyDay() {
+  parsedDays.push({ type: '未命名', focus: null, date: null, exercises: [], note: '', rawLines: [], uncertain: true });
+  renderPreview();
+}
+
+// ======== Export ========
+function exportJSON() {
+  if (parsedDays.length === 0) return toast('没有可导出的数据');
+
+  const exercises = [];
+  const exerciseSet = new Set();
+  const trainingDays = [];
+
+  // First collect exercises
+  for (const day of parsedDays) {
+    for (const ex of day.exercises) {
+      if (!exerciseSet.has(ex.name)) {
+        exerciseSet.add(ex.name);
+        exercises.push({
+          id: crypto.randomUUID(),
+          name: ex.name,
+          category: guessCategory(ex.name),
+          createdAt: Date.now(),
+        });
+      }
+    }
+  }
+
+  const exNameToId = {};
+  for (const e of exercises) exNameToId[e.name] = e.id;
+
+  // Build training days
+  for (const day of parsedDays) {
+    const dayExercises = [];
+    for (const ex of day.exercises) {
+      if (ex.sets.length === 0) continue;
+      dayExercises.push({
+        exerciseId: exNameToId[ex.name],
+        sets: ex.sets.map((s, si) => ({
+          setNumber: si + 1,
+          weight: s.weight || 0,
+          reps: s.reps || 0,
+        })),
+        note: ex.note || undefined,
+      });
+    }
+    if (dayExercises.length === 0 && day.type !== '休息') continue;
+
+    const dateStr = day.date || '2026-01-01';
+    trainingDays.push({
+      id: crypto.randomUUID(),
+      name: day.date ? day.type + (day.focus ? `(${day.focus}侧)` : '') : day.type,
+      date: dateStr,
+      exercises: dayExercises,
+      note: day.note || undefined,
+      createdAt: Date.now(),
+    });
+  }
+
+  const data = { version: 1, exportedAt: new Date().toISOString(), exercises, trainingDays };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gym-import-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`已导出 ${trainingDays.length} 天 · ${exercises.length} 个动作`);
+}
+
+function importToGYM() {
+  if (parsedDays.length === 0) return toast('没有可导入的数据');
+  exportJSON(); // Download as backup first
+  // Also write to localStorage directly
+  const exercises = [];
+  const exerciseSet = new Set();
+  for (const day of parsedDays) {
+    for (const ex of day.exercises) {
+      if (!exerciseSet.has(ex.name)) {
+        exerciseSet.add(ex.name);
+        exercises.push({
+          id: crypto.randomUUID(),
+          name: ex.name,
+          category: guessCategory(ex.name),
+          createdAt: Date.now(),
+        });
+      }
+    }
+  }
+  const exNameToId = {};
+  for (const e of exercises) exNameToId[e.name] = e.id;
+
+  const trainingDays = [];
+  for (const day of parsedDays) {
+    const dayExercises = [];
+    for (const ex of day.exercises) {
+      if (ex.sets.length === 0) continue;
+      dayExercises.push({
+        exerciseId: exNameToId[ex.name],
+        sets: ex.sets.map((s, si) => ({
+          setNumber: si + 1,
+          weight: s.weight || 0,
+          reps: s.reps || 0,
+        })),
+        note: ex.note || undefined,
+      });
+    }
+    if (dayExercises.length === 0) continue;
+    trainingDays.push({
+      id: crypto.randomUUID(),
+      name: day.type + (day.focus ? `(${day.focus}侧)` : ''),
+      date: day.date || '2026-01-01',
+      exercises: dayExercises,
+      note: day.note || undefined,
+      createdAt: Date.now(),
+    });
+  }
+
+  try {
+    const existingEx = JSON.parse(localStorage.getItem('gym_exercises') || '[]');
+    const existingTd = JSON.parse(localStorage.getItem('gym_training_days') || '[]');
+
+    // Merge: add new exercises that don't exist by name
+    const existingNames = new Set(existingEx.map(e => e.name));
+    for (const e of exercises) {
+      if (!existingNames.has(e.name)) existingEx.push(e);
+    }
+
+    // Merge training days (just append)
+    existingTd.push(...trainingDays);
+
+    localStorage.setItem('gym_exercises', JSON.stringify(existingEx));
+    localStorage.setItem('gym_training_days', JSON.stringify(existingTd));
+    toast(`✅ 已写入 GYM！刷新 GYM 页面即可看到 ${trainingDays.length} 个新训练日`);
+  } catch (e) {
+    toast('写入失败: ' + e.message);
+  }
+}
+
+function guessCategory(name) {
+  const map = {
+    '史密斯卧推': '胸', '哑铃上斜卧推': '胸', '器械上斜夹胸': '胸', '器械夹胸': '胸',
+    '上斜对握卧推': '胸', '负重双杠臂屈伸': '三头',
+    '绳索侧平举': '肩', '俯身哑铃外展': '肩',
+    '钢线下拉': '背', '高位下拉': '背', 'T杆划船': '背',
+    '深蹲': '腿', '硬拉': '腿', '负重单腿蹲': '腿', '保加利亚单腿蹲': '腿',
+    '髋内收': '腿', '俯卧腿弯举': '腿', '俯卧腿屈伸': '腿', '山羊挺身': '核心',
+    '绳索卷腹': '核心', '器械卷腹': '核心', '过头臂屈伸': '三头',
+    '有氧': '有氧',
+  };
+  return map[name] || '其他';
+}
+
+function clearAll() {
+  if (!confirm('确定清空所有解析数据？')) return;
+  parsedDays = [];
+  document.getElementById('preview').innerHTML =
+    `<div class="empty-state"><div class="icon">📋</div><p>粘贴文本后点击「解析文本」</p></div>`;
+  document.getElementById('resultCount').textContent = '';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+</script>
+
+</body>
+</html>

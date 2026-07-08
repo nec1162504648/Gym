@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { TrainingDay } from '../../types/record';
 import { formatDate } from '../../utils/date';
 import { Button } from '../common/Button';
@@ -6,22 +6,39 @@ import { Button } from '../common/Button';
 export interface TrainingDayCardProps {
   day: TrainingDay;
   getExerciseName: (id: string) => string;
+  getExerciseCategory: (id: string) => string;
   onEditExercises: (day: TrainingDay) => void;
   onDelete: (day: TrainingDay) => void;
   onRename: (id: string, name: string) => void;
+  onDateChange: (id: string, date: string) => void;
   onNoteChange: (id: string, note: string) => void;
 }
 
 export function TrainingDayCard({
   day,
   getExerciseName,
+  getExerciseCategory,
   onEditExercises,
   onDelete,
   onRename,
+  onDateChange,
   onNoteChange,
 }: TrainingDayCardProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [nameInput, setNameInput] = useState(day.name);
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [dateInput, setDateInput] = useState(day.date);
+
+  // Sync local state when day prop changes externally
+  useEffect(() => {
+    setNameInput(day.name);
+  }, [day.name]);
+
+  useEffect(() => {
+    if (!isEditingDate) {
+      setDateInput(day.date);
+    }
+  }, [day.date, isEditingDate]);
   const [showNote, setShowNote] = useState(false);
   const [noteInput, setNoteInput] = useState(day.note ?? '');
   const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -60,7 +77,15 @@ export function TrainingDayCard({
     setIsRenaming(false);
   }
 
-  const totalSets = day.exercises.reduce((sum, de) => sum + de.sets.length, 0);
+  // Sets grouped by category
+  const categorySets = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const de of day.exercises) {
+      const cat = getExerciseCategory(de.exerciseId);
+      map.set(cat, (map.get(cat) ?? 0) + de.sets.length);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [day.exercises, getExerciseCategory]);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group">
@@ -116,7 +141,48 @@ export function TrainingDayCard({
               </span>
             </div>
           )}
-          <p className="text-sm text-gray-400 mt-0.5">{formatDate(day.date)}</p>
+          {isEditingDate ? (
+            <div className="flex items-center gap-1 mt-0.5">
+              <input
+                type="date"
+                value={dateInput}
+                onChange={(e) => setDateInput(e.target.value)}
+                onBlur={(e) => {
+                  const newDate = e.target.value;
+                  if (newDate && newDate !== day.date) {
+                    onDateChange(day.id, newDate);
+                  }
+                  setIsEditingDate(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const newDate = (e.target as HTMLInputElement).value;
+                    if (newDate && newDate !== day.date) {
+                      onDateChange(day.id, newDate);
+                    }
+                    setIsEditingDate(false);
+                  }
+                  if (e.key === 'Escape') {
+                    setDateInput(day.date);
+                    setIsEditingDate(false);
+                  }
+                }}
+                className="px-2 py-0.5 border border-green-400 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                autoFocus
+              />
+            </div>
+          ) : (
+            <p
+              className="text-sm text-gray-400 mt-0.5 cursor-pointer hover:text-green-500 transition-colors"
+              onClick={() => {
+                setDateInput(day.date);
+                setIsEditingDate(true);
+              }}
+              title="点击修改日期"
+            >
+              {formatDate(day.date)}
+            </p>
+          )}
         </div>
 
         {/* Action buttons */}
@@ -152,9 +218,14 @@ export function TrainingDayCard({
             {day.exercises.map((de, i) => (
               <div key={i}>
                 <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-gray-800 font-semibold">
-                    {getExerciseName(de.exerciseId)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-800 font-semibold">
+                      {getExerciseName(de.exerciseId)}
+                    </span>
+                    {de.duration != null && (
+                      <span className="text-[10px] text-gray-400">⏱{de.duration}分钟</span>
+                    )}
+                  </div>
                   <span className="text-xs text-gray-400">
                     {de.sets.length}组
                   </span>
@@ -168,7 +239,19 @@ export function TrainingDayCard({
                       <span className="font-mono text-gray-600">
                         {s.weight}kg
                       </span>
-                      <span>{s.reps}次</span>
+                      <span className="flex items-center gap-1">
+                        <span>{s.reps}次</span>
+                        {s.rir != null && (
+                          <span className="text-[10px] text-purple-500 bg-purple-50 px-1 rounded">
+                            RIR:{s.rir}
+                          </span>
+                        )}
+                        {s.rpe != null && (
+                          <span className="text-[10px] text-orange-500 bg-orange-50 px-1 rounded">
+                            RPE:{s.rpe}
+                          </span>
+                        )}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -176,7 +259,13 @@ export function TrainingDayCard({
             ))}
             <div className="pt-1.5 mt-1 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
               <span>
-                {day.exercises.length} 个动作 · {totalSets} 组
+                {categorySets.map(([cat, count], i) => (
+                  <span key={cat}>
+                    {i > 0 && ' · '}
+                    {cat}
+                    {count}组
+                  </span>
+                ))}
               </span>
               <span className="opacity-0 group-hover:opacity-100 transition-opacity text-green-500">
                 点击编辑 →

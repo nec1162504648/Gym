@@ -6,6 +6,8 @@ import { Container } from './components/layout/Container';
 import { ExerciseList } from './components/exercise/ExerciseList';
 import { TrainingDayList } from './components/record/TrainingDayList';
 import { FilterBar } from './components/filter/FilterBar';
+import { TrainingStats } from './components/stats/TrainingStats';
+import { ExerciseHistory } from './components/history/ExerciseHistory';
 import type { FilterConditions } from './types/filter';
 import type { Exercise, ExerciseCategory } from './types/exercise';
 import type { TrainingDay } from './types/record';
@@ -31,7 +33,7 @@ function App() {
     setTrainingDays,
   } = useTrainingDays({ exercises });
 
-  const [activeTab, setActiveTab] = useState<'exercises' | 'records'>('records');
+  const [activeTab, setActiveTab] = useState<'exercises' | 'records' | 'stats' | 'history'>('records');
   const [filters, setFilters] = useState<FilterConditions>({
     startDate: daysAgoISO(30),
     endDate: todayISO(),
@@ -82,6 +84,16 @@ function App() {
             onEdit={handleEditExercise}
             onDelete={deleteExercise}
           />
+        ) : activeTab === 'stats' ? (
+          <TrainingStats
+            trainingDays={trainingDays}
+            exercises={exercises}
+          />
+        ) : activeTab === 'history' ? (
+          <ExerciseHistory
+            trainingDays={trainingDays}
+            exercises={exercises}
+          />
         ) : (
           <div>
             <FilterBar
@@ -92,11 +104,20 @@ function App() {
             />
             <TrainingDayList
               trainingDays={filteredDays}
+              allDays={trainingDays}
               exercises={exercises}
               getExerciseById={getExerciseById}
               onAdd={addTrainingDay}
               onUpdate={updateTrainingDay}
               onRename={(id, name) => updateTrainingDay(id, { name })}
+              onDateChange={(id, date) => {
+                updateTrainingDay(id, { date });
+                setFilters((f) => ({
+                  ...f,
+                  startDate: date < f.startDate ? date : f.startDate,
+                  endDate: date > f.endDate ? date : f.endDate,
+                }));
+              }}
               onNoteChange={(id, note) =>
                 updateTrainingDay(id, { note: note || undefined })
               }

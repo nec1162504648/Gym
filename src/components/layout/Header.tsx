@@ -5,8 +5,8 @@ import type { Exercise } from '../../types/exercise';
 import type { TrainingDay } from '../../types/record';
 
 export interface HeaderProps {
-  activeTab: 'exercises' | 'records';
-  onTabChange: (tab: 'exercises' | 'records') => void;
+  activeTab: 'exercises' | 'records' | 'stats' | 'history';
+  onTabChange: (tab: 'exercises' | 'records' | 'stats' | 'history') => void;
   exercises: Exercise[];
   trainingDays: TrainingDay[];
   onImportData: (exercises: Exercise[], trainingDays: TrainingDay[]) => void;
@@ -68,6 +68,26 @@ export function Header({
                 }`}
               >
                 训练记录
+              </button>
+              <button
+                onClick={() => onTabChange('stats')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+                  activeTab === 'stats'
+                    ? 'bg-green-50 text-green-600'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                训练统计
+              </button>
+              <button
+                onClick={() => onTabChange('history')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+                  activeTab === 'history'
+                    ? 'bg-green-50 text-green-600'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                动作历史
               </button>
               <button
                 onClick={() => onTabChange('exercises')}

@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   children: ReactNode;
 }
 
@@ -20,6 +20,7 @@ const variantClasses: Record<string, string> = {
 const sizeClasses: Record<string, string> = {
   sm: 'px-3 py-1.5 text-sm',
   md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base',
 };
 
 export function Button({

@@ -25,10 +25,12 @@ interface SetRow {
   key: string;
   reps: string;
   weight: string;
+  rir: string;
+  rpe: string;
 }
 
 function emptySet(): SetRow {
-  return { key: crypto.randomUUID(), reps: '', weight: '' };
+  return { key: crypto.randomUUID(), reps: '', weight: '', rir: '', rpe: '' };
 }
 
 export function TrainingDayForm({
@@ -45,6 +47,8 @@ export function TrainingDayForm({
   const [setRows, setSetRows] = useState<Record<string, SetRow[]>>({});
   const [catalogTab, setCatalogTab] = useState<string>('全部');
   const [error, setError] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState<Record<string, boolean>>({});
+  const [durations, setDurations] = useState<Record<string, string>>({});
 
   const isEditing = Boolean(initialData);
 
@@ -55,18 +59,31 @@ export function TrainingDayForm({
       const ids = initialData.exercises.map((de) => de.exerciseId);
       setSelectedIds(ids);
       const rows: Record<string, SetRow[]> = {};
+      const adv: Record<string, boolean> = {};
+      const dur: Record<string, string> = {};
       for (const de of initialData.exercises) {
         rows[de.exerciseId] = de.sets.map((s) => ({
           key: crypto.randomUUID(),
           reps: String(s.reps),
           weight: String(s.weight),
+          rir: s.rir != null ? String(s.rir) : '',
+          rpe: s.rpe != null ? String(s.rpe) : '',
         }));
+        dur[de.exerciseId] = de.duration != null ? String(de.duration) : '';
+        // Auto-expand advanced if any rir/rpe/duration is set
+        const hasAdvanced =
+          de.sets.some((s) => s.rir != null || s.rpe != null) || de.duration != null;
+        if (hasAdvanced) adv[de.exerciseId] = true;
       }
       setSetRows(rows);
+      setShowAdvanced(adv);
+      setDurations(dur);
     } else {
       setName(date);
       setSelectedIds([]);
       setSetRows({});
+      setShowAdvanced({});
+      setDurations({});
     }
     setError('');
   }, [initialData, isOpen]);
@@ -99,6 +116,12 @@ export function TrainingDayForm({
     const next = { ...setRows };
     delete next[exerciseId];
     setSetRows(next);
+    const adv = { ...showAdvanced };
+    delete adv[exerciseId];
+    setShowAdvanced(adv);
+    const dur = { ...durations };
+    delete dur[exerciseId];
+    setDurations(dur);
   }
 
   function handleAddSet(exerciseId: string) {
@@ -120,7 +143,7 @@ export function TrainingDayForm({
   function handleSetChange(
     exerciseId: string,
     setIdx: number,
-    field: 'reps' | 'weight',
+    field: 'reps' | 'weight' | 'rir' | 'rpe',
     value: string
   ) {
     const current = setRows[exerciseId];
@@ -157,6 +180,10 @@ export function TrainingDayForm({
         const s = rows[si];
         const reps = Number(s.reps);
         const weight = Number(s.weight);
+        const rirVal = s.rir.trim();
+        const rpeVal = s.rpe.trim();
+        const rir = rirVal !== '' ? Number(rirVal) : undefined;
+        const rpe = rpeVal !== '' ? Number(rpeVal) : undefined;
         if (isNaN(reps) || reps <= 0) {
           const name = exercises.find((e) => e.id === exerciseId)?.name ?? '动作';
           setError(`"${name}" 的第${si + 1}组次数无效`);
@@ -167,9 +194,11 @@ export function TrainingDayForm({
           setError(`"${name}" 的第${si + 1}组重量无效`);
           return;
         }
-        sets.push({ reps, weight, setNumber: si + 1 });
+        sets.push({ reps, weight, setNumber: si + 1, rir, rpe });
       }
-      dayExercises.push({ exerciseId, sets });
+      const durVal = durations[exerciseId]?.trim();
+      const duration = durVal ? Number(durVal) : undefined;
+      dayExercises.push({ exerciseId, sets, duration });
     }
 
     onSubmit({
@@ -265,7 +294,7 @@ export function TrainingDayForm({
                       </button>
                     </div>
                     {(setRows[ex.id] ?? []).map((s, si) => (
-                      <div key={s.key} className="flex items-center gap-1.5">
+                      <div key={s.key} className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs text-gray-400 w-10 shrink-0">
                           第{si + 1}组
                         </span>
@@ -280,6 +309,19 @@ export function TrainingDayForm({
                           step="0.5"
                           className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
                         />
+                        {si > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const prev = (setRows[ex.id] ?? [])[si - 1];
+                              handleSetChange(ex.id, si, 'weight', prev.weight);
+                            }}
+                            className="text-[10px] text-gray-300 hover:text-green-500 whitespace-nowrap cursor-pointer"
+                            title="复制上组重量"
+                          >
+                            ↑
+                          </button>
+                        )}
                         <span className="text-xs text-gray-400">kg</span>
                         <input
                           type="number"
@@ -292,6 +334,48 @@ export function TrainingDayForm({
                           className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
                         />
                         <span className="text-xs text-gray-400">次</span>
+                        <div className="flex items-center gap-0.5 ml-1">
+                          {[3, 6, 9, 11].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() =>
+                                handleSetChange(ex.id, si, 'reps', String(n))
+                              }
+                              className="text-[10px] px-1 py-0.5 bg-gray-100 rounded hover:bg-green-100 hover:text-green-700 transition-colors cursor-pointer text-gray-500"
+                            >
+                              {n}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleSetChange(
+                                ex.id,
+                                si,
+                                'reps',
+                                String(Math.max(1, Number(s.reps || 0) - 1))
+                              )
+                            }
+                            className="text-[10px] px-1 py-0.5 bg-gray-100 rounded hover:bg-orange-100 hover:text-orange-700 transition-colors cursor-pointer text-gray-500"
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleSetChange(
+                                ex.id,
+                                si,
+                                'reps',
+                                String(Number(s.reps || 0) + 1)
+                              )
+                            }
+                            className="text-[10px] px-1 py-0.5 bg-gray-100 rounded hover:bg-green-100 hover:text-green-700 transition-colors cursor-pointer text-gray-500"
+                          >
+                            +
+                          </button>
+                        </div>
                         <button
                           type="button"
                           onClick={() => handleRemoveSet(ex.id, si)}
@@ -302,64 +386,75 @@ export function TrainingDayForm({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
+                        {/* RIR/RPE fields visible when advanced is on */}
+                        {showAdvanced[ex.id] && (
+                          <>
+                            <input
+                              type="number"
+                              placeholder="RIR"
+                              value={s.rir}
+                              onChange={(e) =>
+                                handleSetChange(ex.id, si, 'rir', e.target.value)
+                              }
+                              min="0"
+                              max="10"
+                              className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs text-center focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                            />
+                            <input
+                              type="number"
+                              placeholder="RPE"
+                              value={s.rpe}
+                              onChange={(e) =>
+                                handleSetChange(ex.id, si, 'rpe', e.target.value)
+                              }
+                              min="1"
+                              max="10"
+                              step="0.5"
+                              className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs text-center focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                            />
+                          </>
+                        )}
                       </div>
                     ))}
-                    {/* Quick-fill reps buttons */}
-                    <div className="flex items-center gap-1 pt-1">
-                      <span className="text-xs text-gray-400 mr-1">次数快捷:</span>
-                      {[3, 6, 9, 11].map((n) => (
-                        <button
-                          key={n}
-                          type="button"
-                          onClick={() => {
-                            const current = setRows[ex.id];
-                            if (!current) return;
-                            setSetRows({
-                              ...setRows,
-                              [ex.id]: current.map((s) => ({ ...s, reps: String(n) })),
-                            });
-                          }}
-                          className="px-2 py-0.5 text-xs bg-white border border-gray-200 rounded hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer text-gray-600"
-                        >
-                          {n}次
-                        </button>
-                      ))}
-                      <span className="text-gray-200 mx-0.5">|</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const current = setRows[ex.id];
-                          if (!current) return;
-                          setSetRows({
-                            ...setRows,
-                            [ex.id]: current.map((s) => ({
-                              ...s,
-                              reps: String(Math.max(1, Number(s.reps || 0) - 1)),
-                            })),
-                          });
-                        }}
-                        className="px-2 py-0.5 text-xs bg-white border border-gray-200 rounded hover:border-orange-400 hover:bg-orange-50 transition-colors cursor-pointer text-gray-600"
+                  </div>
+
+                  {/* Advanced options toggle */}
+                  <div className="mt-2 pt-2 border-t border-green-100">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowAdvanced({
+                          ...showAdvanced,
+                          [ex.id]: !showAdvanced[ex.id],
+                        })
+                      }
+                      className="text-xs text-gray-400 hover:text-green-600 cursor-pointer flex items-center gap-1"
+                    >
+                      <svg
+                        className={`w-3 h-3 transition-transform ${showAdvanced[ex.id] ? 'rotate-90' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        −1
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const current = setRows[ex.id];
-                          if (!current) return;
-                          setSetRows({
-                            ...setRows,
-                            [ex.id]: current.map((s) => ({
-                              ...s,
-                              reps: String(Number(s.reps || 0) + 1),
-                            })),
-                          });
-                        }}
-                        className="px-2 py-0.5 text-xs bg-white border border-gray-200 rounded hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer text-gray-600"
-                      >
-                        +1
-                      </button>
-                    </div>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      高级选项 (RIR / RPE / 时长)
+                    </button>
+                    {showAdvanced[ex.id] && (
+                      <div className="mt-2">
+                        <label className="text-xs text-gray-500 mr-2">训练时长（分钟）</label>
+                        <input
+                          type="number"
+                          placeholder="如 15"
+                          value={durations[ex.id] ?? ''}
+                          onChange={(e) =>
+                            setDurations({ ...durations, [ex.id]: e.target.value })
+                          }
+                          min="0"
+                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
