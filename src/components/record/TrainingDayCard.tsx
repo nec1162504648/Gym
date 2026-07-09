@@ -88,7 +88,7 @@ export function TrainingDayCard({
   }, [day.exercises, getExerciseCategory]);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm md:hover:shadow-md transition-all group">
       {/* Header — click name to rename */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
@@ -107,7 +107,7 @@ export function TrainingDayCard({
               />
               <button
                 onClick={handleRenameSubmit}
-                className="p-1 text-green-500 hover:bg-green-50 rounded cursor-pointer"
+                className="p-1 text-green-500 md:hover:bg-green-50 rounded cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -115,7 +115,7 @@ export function TrainingDayCard({
               </button>
               <button
                 onClick={handleRenameCancel}
-                className="p-1 text-gray-400 hover:bg-gray-100 rounded cursor-pointer"
+                className="p-1 text-gray-400 md:hover:bg-gray-100 rounded cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -173,7 +173,7 @@ export function TrainingDayCard({
             </div>
           ) : (
             <p
-              className="text-sm text-gray-400 mt-0.5 cursor-pointer hover:text-green-500 transition-colors"
+              className="text-sm text-gray-400 mt-0.5 cursor-pointer md:hover:text-green-500 transition-colors"
               onClick={() => {
                 setDateInput(day.date);
                 setIsEditingDate(true);
@@ -211,7 +211,7 @@ export function TrainingDayCard({
       {/* Exercise area — click to edit exercises */}
       <div
         onClick={() => onEditExercises(day)}
-        className="cursor-pointer rounded-lg -mx-1 px-1 py-0.5 hover:bg-green-50/60 transition-colors"
+        className="cursor-pointer rounded-lg -mx-1 px-1 py-0.5 md:hover:bg-green-50/60 transition-colors"
       >
         {day.exercises.length > 0 ? (
           <div className="space-y-3">
@@ -273,7 +273,7 @@ export function TrainingDayCard({
             </div>
           </div>
         ) : (
-          <div className="text-sm text-gray-400 py-4 text-center border border-dashed border-gray-200 rounded-lg hover:border-green-400 hover:text-green-500 transition-colors">
+          <div className="text-sm text-gray-400 py-4 text-center border border-dashed border-gray-200 rounded-lg md:hover:border-green-400 md:hover:text-green-500 transition-colors">
             + 点击添加训练内容
           </div>
         )}

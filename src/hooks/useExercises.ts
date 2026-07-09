@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Exercise, ExerciseCategory } from '../types/exercise';
 import { loadFromStorage, saveToStorage } from '../utils/storage';
+import { generateId } from '../utils/id';
 
 const STORAGE_KEY = 'gym_exercises';
 
@@ -26,7 +27,7 @@ export function useExercises(): UseExercisesReturn {
   const addExercise = useCallback(
     (name: string, category: ExerciseCategory, description?: string) => {
       const newExercise: Exercise = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         name,
         category,
         description,

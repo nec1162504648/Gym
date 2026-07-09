@@ -3,6 +3,7 @@ import type { TrainingDay } from '../types/record';
 import type { FilterConditions } from '../types/filter';
 import type { ExerciseCategory } from '../types/exercise';
 import { loadFromStorage, saveToStorage } from '../utils/storage';
+import { generateId } from '../utils/id';
 import { filterTrainingDays, filterByCategory } from '../utils/filter';
 import { todayISO } from '../utils/date';
 
@@ -36,7 +37,7 @@ export function useTrainingDays({ exercises }: UseTrainingDaysOptions): UseTrain
     (date?: string): TrainingDay => {
       const dateStr = date ?? todayISO();
       const newDay: TrainingDay = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         name: dateStr,
         date: dateStr,
         exercises: [],

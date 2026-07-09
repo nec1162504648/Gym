@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '../common/Button';
 import { exportToJsonFile, importFromJsonFile } from '../../utils/storage';
+import { SyncSettings } from '../sync/SyncSettings';
 import type { Exercise } from '../../types/exercise';
 import type { TrainingDay } from '../../types/record';
 
@@ -10,6 +11,12 @@ export interface HeaderProps {
   exercises: Exercise[];
   trainingDays: TrainingDay[];
   onImportData: (exercises: Exercise[], trainingDays: TrainingDay[]) => void;
+  syncStatus: 'idle' | 'syncing' | 'error';
+  onPullData: (exercises: Exercise[], trainingDays: TrainingDay[]) => void;
+  showFilter: boolean;
+  onToggleFilter: () => void;
+  filteredCount: number;
+  onOpenSync: () => void;
 }
 
 export function Header({
@@ -18,8 +25,15 @@ export function Header({
   exercises,
   trainingDays,
   onImportData,
+  syncStatus,
+  onPullData,
+  showFilter,
+  onToggleFilter,
+  filteredCount,
+  onOpenSync,
 }: HeaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
 
   function handleExport() {
     exportToJsonFile(exercises, trainingDays);
@@ -56,9 +70,20 @@ export function Header({
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center gap-6">
             <h1 className="text-xl font-bold text-green-500 whitespace-nowrap">
-              🏋️ GYM
+              GYM
             </h1>
-            <nav className="flex gap-1">
+            {/* Mobile filter toggle */}
+            <button
+              onClick={onToggleFilter}
+              className="md:hidden flex items-center gap-1 px-2.5 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-lg cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span className="text-xs">{filteredCount}天</span>
+              <span className="text-gray-400 text-[10px]">{showFilter ? '▲' : '▼'}</span>
+            </button>
+            <nav className="hidden md:flex gap-1">
               <button
                 onClick={() => onTabChange('records')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
@@ -102,27 +127,66 @@ export function Header({
             </nav>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Mobile sync button (top-right) */}
+          <button
+            onClick={onOpenSync}
+            className={`md:hidden p-2 rounded-lg cursor-pointer ${
+              syncStatus === 'syncing'
+                ? 'text-blue-500 animate-pulse'
+                : syncStatus === 'error'
+                ? 'text-red-400'
+                : 'text-gray-500'
+            }`}
+            title="云同步"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+
+          <div className="hidden md:flex items-center gap-2">
+            <button
+              onClick={() => setShowSyncSettings(true)}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                syncStatus === 'syncing'
+                  ? 'text-blue-500 animate-pulse'
+                  : syncStatus === 'error'
+                  ? 'text-red-400'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              }`}
+              title="云同步设置"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
             <Button variant="ghost" size="sm" onClick={handleExport}>
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0L8 8m4-4v12" />
               </svg>
               导出
             </Button>
             <Button variant="ghost" size="sm" onClick={handleImportClick}>
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               导入
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              onChange={handleFileChange}
-              className="hidden"
-            />
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <SyncSettings
+            isOpen={showSyncSettings}
+            onClose={() => setShowSyncSettings(false)}
+            exercises={exercises}
+            trainingDays={trainingDays}
+            onPullData={onPullData}
+          />
         </div>
       </div>
     </header>

@@ -98,31 +98,31 @@ export function TrainingDayList({
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <div className="shrink-0">
           <h2 className="text-lg font-semibold text-gray-800">训练记录</h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            共 {trainingDays.length} 个训练日
+            共 {trainingDays.length} 天
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
             variant="secondary"
             size="lg"
             onClick={() => setShowCopyPicker(true)}
             disabled={copyableDays.length === 0}
           >
-            复制训练
+            复制
           </Button>
           <Button variant="primary" size="lg" onClick={handleAddToday}>
-            + 添加今日训练
+            + 今日训练
           </Button>
         </div>
       </div>
 
       {/* Training day cards */}
       {trainingDays.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {trainingDays.map((day) => (
             <TrainingDayCard
               key={day.id}
@@ -187,13 +187,13 @@ export function TrainingDayList({
             暂无可复制的训练日（需要有训练内容的卡片）
           </p>
         ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-2">
             {copyableDays.map((d) => (
               <button
                 key={d.id}
                 type="button"
                 onClick={() => handleCopyFrom(d)}
-                className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
+                className="w-full text-left p-4 rounded-lg border border-gray-200 active:border-green-400 active:bg-green-50 transition-colors cursor-pointer touch-manipulation select-none"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-sm text-gray-800">

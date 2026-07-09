@@ -69,7 +69,6 @@ export function FilterBar({
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 space-y-3">
-      {/* Date range */}
       <div className="flex flex-wrap items-center gap-2">
         <label className="text-sm text-gray-600 w-16 shrink-0">日期范围</label>
         <input

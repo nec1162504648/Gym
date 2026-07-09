@@ -2,14 +2,9 @@ import { useState, useMemo } from 'react';
 import type { Exercise, ExerciseCategory } from '../../types/exercise';
 import type { TrainingDay } from '../../types/record';
 import {
-  getVolumeByWeek,
-  getVolumeByMonth,
   getPersonalRecords,
 } from '../../utils/stats';
 import { EmptyState } from '../common/EmptyState';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
 
 export interface TrainingStatsProps {
   trainingDays: TrainingDay[];
@@ -17,20 +12,6 @@ export interface TrainingStatsProps {
 }
 
 export function TrainingStats({ trainingDays, exercises }: TrainingStatsProps) {
-  const [volumeMode, setVolumeMode] = useState<'week' | 'month'>('week');
-
-  const volumeByWeek = useMemo(
-    () => getVolumeByWeek(trainingDays),
-    [trainingDays]
-  );
-
-  const volumeByMonth = useMemo(
-    () => getVolumeByMonth(trainingDays),
-    [trainingDays]
-  );
-
-  const volumeActive = volumeMode === 'week' ? volumeByWeek : volumeByMonth;
-
   // Build exerciseId → category lookup
   const categoryMap = useMemo(() => {
     const map = new Map<string, ExerciseCategory>();
@@ -86,66 +67,7 @@ export function TrainingStats({ trainingDays, exercises }: TrainingStatsProps) {
         <FrequencyGrid categoryDates={categoryDates} />
       </section>
 
-      {/* ===== Module 2: Training Volume ===== */}
-      <section className="bg-white border border-gray-200 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-gray-800">
-            📊 训练容量
-          </h2>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
-            <button
-              onClick={() => setVolumeMode('week')}
-              className={`px-3 py-1 text-xs rounded-md transition-colors cursor-pointer ${
-                volumeMode === 'week'
-                  ? 'bg-white shadow text-gray-800 font-medium'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              按周
-            </button>
-            <button
-              onClick={() => setVolumeMode('month')}
-              className={`px-3 py-1 text-xs rounded-md transition-colors cursor-pointer ${
-                volumeMode === 'month'
-                  ? 'bg-white shadow text-gray-800 font-medium'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              按月
-            </button>
-          </div>
-        </div>
-
-        {volumeActive.length === 0 ? (
-          <p className="text-sm text-gray-400 py-8 text-center">暂无数据</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={volumeActive}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: '#9ca3af' }}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: '#9ca3af' }}
-                label={{ value: '总容量(kg)', position: 'insideLeft', style: { fontSize: 11, fill: '#9ca3af' }, angle: -90, dy: 50 }}
-              />
-              <Tooltip
-                contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                formatter={(value) => [`${Number(value).toLocaleString()} kg`, '总容量']}
-              />
-              <Bar
-                dataKey="volume"
-                name="总容量"
-                fill="#22c55e"
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </section>
-
-      {/* ===== Module 3: Personal Records ===== */}
+      {/* ===== Module 2: Personal Records ===== */}
       <section className="bg-white border border-gray-200 rounded-xl p-5">
         <h2 className="text-base font-semibold text-gray-800 mb-4">
           🏆 个人纪录
@@ -383,10 +305,10 @@ function FrequencyGrid({ categoryDates }: FrequencyGridProps) {
           </div>
           <div className="space-y-1">
             {monthGrid.map((week, wi) => (
-              <div key={wi} className="flex gap-1">
+              <div key={wi} className="grid grid-cols-7 gap-1">
                 {week.map((cell, di) => {
                   if (!cell.inMonth) {
-                    return <div key={di} className="flex-1 aspect-square" />;
+                    return <div key={di} />;
                   }
                   const cats = categoryDates.get(cell.date);
                   const label = getTileLabel(cats);
@@ -395,7 +317,7 @@ function FrequencyGrid({ categoryDates }: FrequencyGridProps) {
                     <div
                       key={di}
                       title={`${cell.date} ${label}`}
-                      className={`flex-1 aspect-square rounded-md flex items-center justify-center text-xs transition-colors ${
+                      className={`aspect-square rounded-md flex items-center justify-center text-xs transition-colors ${
                         getTileColor(cats)
                       } ${isToday ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
                     >
