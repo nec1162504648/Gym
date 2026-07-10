@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { exportToJsonFile } from '../../utils/storage';
 import {
   fetchGistData,
   pushGistData,
